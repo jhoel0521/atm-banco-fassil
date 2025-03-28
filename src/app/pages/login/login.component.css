@@ -1,0 +1,16 @@
+.container {
+    min-height: 100vh;
+}
+
+.card {
+    border-radius: 10px;
+}
+
+.btn {
+    background-color: #007bff;
+    border: none;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
