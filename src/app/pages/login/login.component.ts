@@ -21,17 +21,22 @@ export class LoginComponent {
   constructor(private authService: AuthService, private router: Router) {}
 
   onLogin() {
-    // Crear el objeto de datos a enviar
     const loginData = {
       cardNumber: this.cardNumber,
       pin: this.pin
     };
-
-    // Llamar al servicio de login
+  
     this.authService.login(loginData).subscribe({
       next: (response) => {
-        console.log('Login exitoso:', response);
-        this.router.navigate(['/home']); // Redirigir al usuario después de login exitoso
+        if (response.success && response.data) {
+          console.log('Login exitoso:', response);
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          this.router.navigate(['/dashboard']); // Redirigir al usuario
+        } else {
+          console.error('Error en el login: Respuesta sin datos válidos');
+          this.errorMessage = 'Hubo un problema con la autenticación';
+        }
       },
       error: (err) => {
         console.error('Error en el login:', err);
@@ -39,4 +44,5 @@ export class LoginComponent {
       }
     });
   }
+  
 }
