@@ -1,7 +1,7 @@
 // src/app/env.constants.ts
 
 export const ENV = {
-    URL_BANCO_FASSIL: process.env['URL_BANCO_FASSIL'] || 'http://localhost', // Puedes colocar un valor por defecto
+    URL_BANCO_FASSIL: 'https://4-co.de/upds/banco-fassil',  
     LOGIN: '/api/login',
     ME: '/api/me',
     ACCOUNTS: '/api/accounts',

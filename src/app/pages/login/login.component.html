@@ -1,28 +1,22 @@
 <div class="container d-flex justify-content-center align-items-center vh-100">
     <div class="card p-4 shadow-lg" style="width: 350px;">
         <h2 class="text-center mb-4">Iniciar Sesión</h2>
-        <form>
+        <form (ngSubmit)="onLogin()">
             <div class="mb-3">
-                <label for="numberCard" class="form-label">Numero de tarjeta Card</label>
+                <label for="numberCard" class="form-label">Número de tarjeta</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
-                    <input type="numberCard" id="numberCard" class="form-control" placeholder="4796******" required>
+                    <input type="text" id="numberCard" class="form-control" placeholder="4796******"
+                        [(ngModel)]="cardNumber" name="numberCard" required>
                 </div>
             </div>
             <div class="mb-3">
                 <label for="pin" class="form-label">PIN</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" id="pin" class="form-control" placeholder="****" 
+                    <input type="password" id="pin" class="form-control" placeholder="****"
                         minlength="4" maxlength="4" pattern="\d{4}" title="El PIN debe contener 4 dígitos"
-                        aria-describedby="pinHelp"
-                        oninput="this.setCustomValidity(this.validity.patternMismatch ? this.title : '');"
-                        oninvalid="this.setCustomValidity(this.title)"
-                        oninput="this.setCustomValidity('');"
-                        oninvalid="this.setCustomValidity('El PIN debe contener 4 dígitos')"
-                        oninput="this.setCustomValidity('');"
-                        oninvalid="this.setCustomValidity('El PIN debe contener 4 dígitos')"
-                    required>
+                        [(ngModel)]="pin" name="pin" required>
                 </div>
             </div>
             <button class="btn btn-primary w-100">Ingresar</button>
