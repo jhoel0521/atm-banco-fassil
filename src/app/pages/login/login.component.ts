@@ -32,6 +32,7 @@ export class LoginComponent {
           console.log('Login exitoso:', response);
           localStorage.setItem('token', response.data.token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
+          localStorage.setItem('time', JSON.stringify(new Date()));
           this.router.navigate(['/dashboard']); // Redirigir al usuario
         } else {
           console.error('Error en el login: Respuesta sin datos válidos');
