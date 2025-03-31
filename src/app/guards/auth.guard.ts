@@ -14,13 +14,12 @@ export const authGuard: CanActivateFn = (route, state) => {
       if (isAuthenticated) {
         return true; // Permitir acceso
       } else {
-        return false; // Denegar acceso
+        return router.createUrlTree(['/login']); // Redirigir a la página de inicio de sesión
       }
     }),
     catchError((error) => {
       console.error('Error verificando autenticación:', error);
-      router.navigate(['/login']); // Redirigir en caso de error
-      return of(false); // Denegar acceso
+      return of(router.createUrlTree(['/login'])); // Redirigir a la página de inicio de sesión en caso de error
     })
   );
 };
