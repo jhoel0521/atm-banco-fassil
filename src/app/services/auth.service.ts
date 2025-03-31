@@ -1,5 +1,3 @@
-// src/app/services/auth.service.ts
-
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of, Observable } from 'rxjs';
@@ -31,6 +29,7 @@ export class AuthService {
   private baseUrl = ENV.URL_BANCO_FASSIL;
 
   constructor(private http: HttpClient, private router: Router) { }
+
   // Método para hacer login
   login(credentials: { cardNumber: string; pin: string }): Observable<ApiResponse<LoginResponseData>> {
     const url = `${this.baseUrl}${ENV.LOGIN}`;
@@ -40,17 +39,31 @@ export class AuthService {
 
     return this.http.post<ApiResponse<LoginResponseData>>(url, credentials, { headers });
   }
-  guardarToken(token: string): void {
 
+  guardarToken(token: string): void {
+    localStorage.setItem('token', token); // Guarda el token en el almacenamiento local
   }
+
   // Otros métodos de la API como obtener "me", "accounts", etc., con token en el encabezado
   getMe(token: string): Observable<any> {
     const headers = new HttpHeaders({
       'X-Mi-Token': `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
-    console.log(`${this.baseUrl}${ENV.ME}`, { headers }, 'post');
-    return this.http.post(`${this.baseUrl}${ENV.ME}`, { headers });
+
+    // Asegúrate de incluir un "body", aunque esté vacío
+    const body = {};
+
+    return this.http.post(`${this.baseUrl}${ENV.ME}`, body, { headers }).pipe(
+      catchError((error) => {
+        if (error.status === 0) {
+          console.error('Error de CORS o problema de conexión');
+        } else {
+          console.error('Error al obtener "me":', error);
+        }
+        return of(null); // Regresa null o maneja el error de forma adecuada
+      })
+    );
   }
 
   isAuthenticated(): Observable<boolean> {
@@ -63,7 +76,6 @@ export class AuthService {
     }
 
     try {
-      
       return this.getMe(token).pipe(
         map((response: any) => {
           if (response && response.success) {
@@ -74,7 +86,7 @@ export class AuthService {
             this.clearLocalStorage();
             return false; // Usuario no autenticado
           }
-        }), // Mapear respuesta a booleano
+        }),
         catchError((error) => {
           console.error('Error en el servidor:', error);
           return of(false); // Devolver false en caso de error
@@ -86,8 +98,6 @@ export class AuthService {
       return of(false); // Devolver false en caso de error
     }    
   }
-
-
 
   checkAuthenticationAndRedirect(): void {
     this.isAuthenticated().subscribe(
