@@ -7,9 +7,19 @@ import { map, catchError } from 'rxjs/operators';
 
 export interface ApiResponse<T> {
   success: boolean;
-  data?: T; // El campo "data" es opcional, ya que podría no estar presente si "success" no es true
+  data?: T;
 }
-
+export interface Account {
+  id: number;
+  currentBalance: string;
+  type: string;
+  status: string;
+  personId: number;
+  officeId: number;
+}
+export interface AccountsResponse {
+  accounts: Account[];
+}
 export interface User {
   id: number;
   username: string;
@@ -96,7 +106,7 @@ export class AuthService {
       console.error('Error al contactar al servidor:', error);
       this.clearLocalStorage();
       return of(false); // Devolver false en caso de error
-    }    
+    }
   }
 
   checkAuthenticationAndRedirect(): void {
@@ -117,11 +127,38 @@ export class AuthService {
       }
     );
   }
-  
+
   public clearLocalStorage(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('time');
     localStorage.removeItem('user');
   }
+  public getAccounts(token: string): Observable<ApiResponse<AccountsResponse>> {
+    const headers = new HttpHeaders({
+      'X-Mi-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+  
+    return this.http.get<ApiResponse<AccountsResponse>>(
+      `${this.baseUrl}${ENV.ACCOUNTS}`,
+      { headers }  
+    );
+  }
+  public withdraw(token: string, accountId: number, amount: number): Observable<any> {
+    const headers = new HttpHeaders({
+      'X-Mi-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
 
+    const body = {
+      amount: amount,
+      account_id: accountId
+    };
+
+    return this.http.post(
+      `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
+      body,
+      { headers }
+    );
+  }
 }

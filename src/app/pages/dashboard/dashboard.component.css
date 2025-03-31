@@ -1,13 +1,61 @@
-.dashboard {
-    text-align: center;
-    margin: 20px;
-    font-family: Arial, sans-serif;
-}
-
-h1 {
-    color: #2c3e50;
-}
-
-p {
-    color: #34495e;
-}
+/* Estilos generales */
+.card {
+    transition: all 0.3s ease;
+    border-radius: 0.75rem;
+  }
+  
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .btn {
+    transition: all 0.3s ease;
+  }
+  
+  .btn:disabled {
+    opacity: 0.65;
+  }
+  
+  /* Selector de cuentas */
+  .btn-outline-primary.active {
+    background-color: #0d6efd;
+    color: white;
+  }
+  
+  /* Alertas */
+  .alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1100;
+    min-width: 300px;
+    animation: fadeIn 0.5s;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Modal */
+  .modal-content {
+    border-radius: 0.75rem;
+  }
+  
+  /* Spinner */
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  /* Responsivo */
+  @media (max-width: 768px) {
+    .display-4 {
+      font-size: 2.5rem;
+    }
+    
+    .btn {
+      padding: 0.5rem;
+    }
+  }

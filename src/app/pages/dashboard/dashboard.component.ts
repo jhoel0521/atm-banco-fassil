@@ -4,19 +4,33 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 
+interface Account {
+  id: number;
+  currentBalance: string;
+  type: string;
+  status: string;
+  personId: number;
+  officeId: number;
+  created_at: string;
+  updated_at: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule], // Agrega los módulos necesarios
+  imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
 export class DashboardComponent implements OnInit {
   user: any;
-  account: any;
+  accounts: Account[] = [];
+  selectedAccount: Account | null = null;
   currentDate = new Date();
   quickAmounts = [100, 200, 500, 1000];
   customAmount: number = 0;
+  transactionMessage: string | null = null;
+  isLoading: boolean = false;
 
   constructor(
     public authService: AuthService,
@@ -25,7 +39,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.loadUserData();
-    this.loadAccountInfo();
+    this.loadAccounts();
   }
 
   private loadUserData() {
@@ -35,24 +49,67 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  private loadAccountInfo() {
-    // Implementar lógica real para obtener datos de la cuenta
-    this.account = {
-      number: '1234 5678 9012 3456',
-      balance: 15000.50,
-      currency: 'USD'
-    };
+  private loadAccounts() {
+    this.isLoading = true;
+    const token = localStorage.getItem('token');
+    if (token) {
+      this.authService.getAccounts(token).subscribe({
+        next: (response: any) => {
+          if (response?.success) {
+            this.accounts = response.data.accounts;
+            if (this.accounts.length > 0) {
+              this.selectedAccount = this.accounts[0];
+            }
+          }
+          this.isLoading = false;
+        },
+        error: (err) => {
+          console.error('Error loading accounts:', err);
+          this.isLoading = false;
+        }
+      });
+    }
+  }
+
+  selectAccount(account: Account) {
+    this.selectedAccount = account;
   }
 
   withdraw(amount: number) {
-    console.log('Retirando:', amount);
-    // Implementar lógica de retiro
+    if (!this.selectedAccount) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    this.isLoading = true;
+    this.authService.withdraw(token, this.selectedAccount.id, amount).subscribe({
+      next: (response: any) => {
+        this.transactionMessage = 'Retiro exitoso!';
+        this.loadAccounts(); // Actualizar saldos
+        this.isLoading = false;
+        setTimeout(() => this.transactionMessage = null, 3000);
+      },
+      error: (err) => {
+        this.transactionMessage = 'Error en el retiro: ' + (err.error?.message || 'Error desconocido');
+        this.isLoading = false;
+        setTimeout(() => this.transactionMessage = null, 5000);
+      }
+    });
   }
 
   withdrawCustom() {
-    if (this.customAmount > 0) {
+    if (this.customAmount > 0 && this.selectedAccount) {
       this.withdraw(this.customAmount);
+      this.customAmount = 0;
     }
+  }
+
+  formatBalance(balance: string): number {
+    return parseFloat(balance);
+  }
+
+  getAccountTypeName(type: string): string {
+    return type === 'CA' ? 'Cuenta Ahorros' : 'Cuenta Corriente';
   }
 
   logout() {
