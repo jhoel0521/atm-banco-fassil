@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, Transaction } from '../../services/auth.service';
 import { Router } from '@angular/router';
 
 interface Account {
@@ -31,7 +31,7 @@ export class DashboardComponent implements OnInit {
   customAmount: number = 0;
   transactionMessage: string | null = null;
   isLoading: boolean = false;
-
+  transactions: Transaction[] = [];
   constructor(
     public authService: AuthService,
     private router: Router
@@ -40,6 +40,7 @@ export class DashboardComponent implements OnInit {
   ngOnInit() {
     this.loadUserData();
     this.loadAccounts();
+
   }
 
   private loadUserData() {
@@ -59,6 +60,7 @@ export class DashboardComponent implements OnInit {
             this.accounts = response.data.accounts;
             if (this.accounts.length > 0) {
               this.selectedAccount = this.accounts[0];
+              this.loadTransactions();
             }
           }
           this.isLoading = false;
@@ -70,9 +72,12 @@ export class DashboardComponent implements OnInit {
       });
     }
   }
+  public getTransactions() {
 
+  }
   selectAccount(account: Account) {
     this.selectedAccount = account;
+    this.loadTransactions();
   }
 
   withdraw(amount: number) {
@@ -116,5 +121,48 @@ export class DashboardComponent implements OnInit {
   logout() {
     this.authService.clearLocalStorage();
     this.router.navigate(['/login']);
+  }
+  loadTransactions() {
+    console.log('Loading transactions...');
+    console.table(this);
+    if (!this.selectedAccount) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const today = new Date();
+    // yyyy-mm-dd
+    const fromDate = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    const toDate = fromDate;
+    this.isLoading = true;
+    this.authService.getTransactions(
+      token,
+      this.selectedAccount.id,
+      toDate,
+      fromDate
+    ).subscribe({
+      next: (response: any) => {
+        if (response?.success) {
+          const accountData = response.data.accounts.find((acc: any) => acc.id === this.selectedAccount?.id);
+          this.transactions = accountData?.transactions || [];
+          console.log('Transactions:', this.transactions);
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading transactions:', err);
+        this.transactions = [];
+        this.isLoading = false;
+      }
+    });
+  }
+
+  formatTransactionType(type: string): string {
+    switch (type) {
+      case 'W': return 'Retiro';
+      case 'D': return 'Depósito';
+      case 'T': return 'Transferencia';
+      default: return type;
+    }
   }
 }

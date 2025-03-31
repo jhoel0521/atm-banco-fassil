@@ -12,7 +12,7 @@
                             <small class="d-block mt-1">
                                 Bienvenido: {{ user?.username }} |
                                 <span *ngIf="selectedAccount">
-                                    {{ getFormat(selectedAccount) }} 
+                                    {{ getFormat(selectedAccount) }}
                                 </span>
                             </small>
                         </div>
@@ -33,7 +33,7 @@
                         <button *ngFor="let account of accounts" class="btn btn-outline-primary"
                             [class.active]="account.id === selectedAccount?.id" (click)="selectAccount(account)"
                             [disabled]="isLoading">
-                              {{ getFormat(account) }} 
+                            {{ getFormat(account) }}
                         </button>
                     </div>
                 </div>
@@ -54,6 +54,36 @@
                                 </h1>
                                 <small class="text-muted">Actualizado: {{ currentDate | date:'dd/MM/yyyy HH:mm'
                                     }}</small>
+                            </div>
+                            <div class="mt-4 text-start" *ngIf="transactions.length > 0">
+                                <h5 class="text-center mb-3">Movimientos del día</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Hora</th>
+                                                <th>Tipo</th>
+                                                <th>Monto</th>
+                                                <th>Saldo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr *ngFor="let trans of transactions">
+                                                <td>{{ trans.created_at | date:'HH:mm' }}</td>
+                                                <td>{{ formatTransactionType(trans.type) }}</td>
+                                                <td [class.text-danger]="trans.type === 'W'"
+                                                    [class.text-success]="trans.type !== 'W'">
+                                                    {{ trans.type === 'W' ? '-' : '+' }}{{ formatBalance(trans.amount) |
+                                                    number:'1.2-2' }}
+                                                </td>
+                                                <td>{{ formatBalance(trans.newBalance) | number:'1.2-2' }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div *ngIf="transactions.length === 0" class="mt-3 text-muted">
+                                No hay movimientos hoy
                             </div>
                             <ng-template #noAccount>
                                 <p class="text-danger">No hay cuentas disponibles</p>

@@ -31,6 +31,29 @@ export interface LoginResponseData {
   token: string;
   user: User;
 }
+export interface Transaction {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  type: 'W' | 'D' | 'T'; // W: Withdrawal, D: Deposit, T: Transfer
+  previousBalance: string;
+  newBalance: string;
+  amount: string;
+  commentSystem: string;
+  description: string;
+  accountId: number;
+}
+export interface AccountsResponse {
+  accounts: Account[];
+}
+export interface TransactionsResponse {
+  message: string;
+  accounts: {
+    id: number;
+    transactions: Transaction[];
+  }[];
+}
+
 
 @Injectable({
   providedIn: 'root'
@@ -89,7 +112,7 @@ export class AuthService {
       return this.getMe(token).pipe(
         map((response: any) => {
           if (response && response.success) {
-            console.log('Usuario autenticado:', response.data);
+            console.log('Usuario autenticado');
             return true; // Usuario autenticado
           } else {
             console.warn('Usuario no autenticado');
@@ -138,10 +161,10 @@ export class AuthService {
       'X-Mi-Token': `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
-  
+
     return this.http.get<ApiResponse<AccountsResponse>>(
       `${this.baseUrl}${ENV.ACCOUNTS}`,
-      { headers }  
+      { headers }
     );
   }
   public withdraw(token: string, accountId: number, amount: number): Observable<any> {
@@ -158,6 +181,23 @@ export class AuthService {
     return this.http.post(
       `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
       body,
+      { headers }
+    );
+  }
+  public getTransactions(token: string, accountId: number, to: string, from: string): Observable<ApiResponse<TransactionsResponse>> {
+    const headers = new HttpHeaders({
+      'X-Mi-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+
+    const body = {
+      account_id: accountId,
+      to: to,
+      from: from
+    };
+
+    return this.http.get<ApiResponse<TransactionsResponse>>(
+      `${this.baseUrl}${ENV.TRANSACTIONS}`,
       { headers }
     );
   }
