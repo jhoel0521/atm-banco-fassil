@@ -118,7 +118,7 @@ export class AuthService {
     );
   }
   
-  private clearLocalStorage(): void {
+  public clearLocalStorage(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('time');
     localStorage.removeItem('user');
