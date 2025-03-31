@@ -123,8 +123,6 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
   loadTransactions() {
-    console.log('Loading transactions...');
-    console.table(this);
     if (!this.selectedAccount) return;
 
     const token = localStorage.getItem('token');
@@ -132,14 +130,14 @@ export class DashboardComponent implements OnInit {
 
     const today = new Date();
     // yyyy-mm-dd
-    const fromDate = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
-    const toDate = fromDate;
+    const now = today.toISOString().split('T')[0];
+    console.log('Fecha actual:', now);
     this.isLoading = true;
     this.authService.getTransactions(
       token,
       this.selectedAccount.id,
-      toDate,
-      fromDate
+      now,
+      now,
     ).subscribe({
       next: (response: any) => {
         if (response?.success) {

@@ -190,14 +190,10 @@ export class AuthService {
       'Content-Type': 'application/json'
     });
 
-    const body = {
-      account_id: accountId,
-      to: to,
-      from: from
-    };
+    
 
     return this.http.get<ApiResponse<TransactionsResponse>>(
-      `${this.baseUrl}${ENV.TRANSACTIONS}`,
+      `${this.baseUrl}${ENV.TRANSACTIONS}?idAccount=${accountId}&to=${to}&from=${from}`,
       { headers }
     );
   }
