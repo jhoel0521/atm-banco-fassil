@@ -35,7 +35,7 @@ export class DashboardComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit() {
     this.loadUserData();
@@ -108,8 +108,9 @@ export class DashboardComponent implements OnInit {
     return parseFloat(balance);
   }
 
-  getAccountTypeName(type: string): string {
-    return type === 'CA' ? 'Cuenta Ahorros' : 'Cuenta Corriente';
+  getFormat(cuenta: Account): string {
+    const formattedId = cuenta.id.toString().padStart(8, '0');
+    return (cuenta.type === 'CA' ? 'Cuenta Ahorros' : 'Cuenta Corriente') + ` #${cuenta.type}-${formattedId}`
   }
 
   logout() {
