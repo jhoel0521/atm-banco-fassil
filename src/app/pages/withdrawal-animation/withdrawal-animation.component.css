@@ -1,70 +1,30 @@
-.animation-container {
-    background: #f8f9fa;
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #212529;
+/* Animación de billetes */
+.badge.bg-success {
+    transition: all 0.3s ease;
+    animation: fadeIn 0.5s ease-in-out;
 }
 
-.atm-machine {
-    width: 400px;
-    height: 600px;
-    background: #e9ecef;
-    border: 2px solid #dee2e6;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilo para el contenedor principal */
+.container {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+/* Estilo para la tarjeta de resultado */
+.card {
     border-radius: 15px;
-    position: relative;
-    padding: 20px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
-
-.screen {
-    background: white;
-    height: 300px;
-    border-radius: 10px;
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-    border: 1px solid #dee2e6;
-}
-
-.bill {
-    /* Mantenemos los estilos anteriores pero cambiamos colores */
-    background: #ffffff;
-    color: #28a745;
-    border: 2px solid #28a745;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.cash-slot {
-    background: #adb5bd;
-}
-
-.message {
-    color: #28a745;
-}
-
-.message h3 {
-    font-size: 1.5rem;
-}
-
-/* Animaciones con iconos */
-.bill-icon {
-    font-size: 2.5rem;
-    color: #28a745;
-    animation: float 2s ease-in-out infinite;
-}
-
-@keyframes float {
-    0% {
-        transform: translateY(0px);
-    }
-
-    50% {
-        transform: translateY(-20px);
-    }
-
-    100% {
-        transform: translateY(0px);
-    }
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border: none;
 }

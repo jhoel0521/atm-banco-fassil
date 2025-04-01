@@ -52,25 +52,22 @@ export class DashboardComponent implements OnInit {
 
   private loadAccounts() {
     this.isLoading = true;
-    const token = localStorage.getItem('token');
-    if (token) {
-      this.authService.getAccounts(token).subscribe({
-        next: (response: any) => {
-          if (response?.success) {
-            this.accounts = response.data.accounts;
-            if (this.accounts.length > 0) {
-              this.selectedAccount = this.accounts[0];
-              this.loadTransactions();
-            }
+    this.authService.getAccounts().subscribe({
+      next: (response: any) => {
+        if (response?.success) {
+          this.accounts = response.data.accounts;
+          if (this.accounts.length > 0) {
+            this.selectedAccount = this.accounts[0];
+            this.loadTransactions();
           }
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('Error loading accounts:', err);
-          this.isLoading = false;
         }
-      });
-    }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading accounts:', err);
+        this.isLoading = false;
+      }
+    });
   }
   public getTransactions() {
 
@@ -82,7 +79,7 @@ export class DashboardComponent implements OnInit {
 
   // Agrega este método para calcular los billetes
   private calculateBills(amount: number): number[] {
-    const denominations = [200, 100, 50, 20];
+    const denominations = [200, 100, 50, 20, 10];
     const bills = [];
     let remaining = amount;
 
@@ -102,11 +99,9 @@ export class DashboardComponent implements OnInit {
   withdraw(amount: number) {
     if (!this.selectedAccount) return;
 
-    const token = localStorage.getItem('token');
-    if (!token) return;
 
     this.isLoading = true;
-    this.authService.withdraw(token, this.selectedAccount.id, amount).subscribe({
+    this.authService.withdraw(this.selectedAccount.id, amount).subscribe({
       next: (response: any) => {
         // Redirige a la página de animación con los datos
         this.router.navigate(['/withdrawal-animation'], {
@@ -143,14 +138,23 @@ export class DashboardComponent implements OnInit {
   }
 
   logout() {
-    this.authService.clearLocalStorage();
-    this.router.navigate(['/login']);
+    this.authService.logout().subscribe({
+      next: (response) => {
+        console.log('Logout exitoso', response);
+        this.router.navigate(['/login']);
+      },
+      error: (error) => {
+        console.error('Error en logout:', error);
+        this.router.navigate(['/login']);
+      },
+      complete: () => {
+        console.log('Logout completado');
+      }
+    });
   }
   loadTransactions() {
     if (!this.selectedAccount) return;
 
-    const token = localStorage.getItem('token');
-    if (!token) return;
 
     const today = new Date();
     // yyyy-mm-dd
@@ -158,7 +162,6 @@ export class DashboardComponent implements OnInit {
     console.log('Fecha actual:', now);
     this.isLoading = true;
     this.authService.getTransactions(
-      token,
       this.selectedAccount.id,
       now,
       now,

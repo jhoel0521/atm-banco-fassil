@@ -1,14 +1,26 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of, Observable } from 'rxjs';
-import { ENV } from '../env.constants'; // Aquí importas la configuración del URL base
+import { ENV } from '../env.constants';
 import { Router } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
+
+export class TokenError extends Error {
+  public code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'TokenError';
+    this.code = code;
+    Object.setPrototypeOf(this, TokenError.prototype);
+  }
+}
 
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
 }
+
 export interface Account {
   id: number;
   currentBalance: string;
@@ -17,9 +29,11 @@ export interface Account {
   personId: number;
   officeId: number;
 }
+
 export interface AccountsResponse {
   accounts: Account[];
 }
+
 export interface User {
   id: number;
   username: string;
@@ -31,11 +45,12 @@ export interface LoginResponseData {
   token: string;
   user: User;
 }
+
 export interface Transaction {
   id: number;
   created_at: string;
   updated_at: string;
-  type: 'W' | 'D' | 'T'; // W: Withdrawal, D: Deposit, T: Transfer
+  type: 'W' | 'D' | 'T';
   previousBalance: string;
   newBalance: string;
   amount: string;
@@ -43,9 +58,7 @@ export interface Transaction {
   description: string;
   accountId: number;
 }
-export interface AccountsResponse {
-  accounts: Account[];
-}
+
 export interface TransactionsResponse {
   message: string;
   accounts: {
@@ -53,7 +66,6 @@ export interface TransactionsResponse {
     transactions: Transaction[];
   }[];
 }
-
 
 @Injectable({
   providedIn: 'root'
@@ -63,92 +75,108 @@ export class AuthService {
 
   constructor(private http: HttpClient, private router: Router) { }
 
-  // Método para hacer login
+  // Método para obtener el token con manejo de errores
+  getToken(): string {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new TokenError(
+        'No se encontró token de autenticación. Redirigiendo a login.',
+        'AUTH_SERVICE_NO_TOKEN'
+      );
+    }
+    return token;
+  }
+
+  // Método para establecer headers con token
+  private getAuthHeaders(): HttpHeaders {
+    const token = this.getToken();
+    return new HttpHeaders({
+      'X-Mi-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+  }
+
   login(credentials: { cardNumber: string; pin: string }): Observable<ApiResponse<LoginResponseData>> {
     const url = `${this.baseUrl}${ENV.LOGIN}`;
     const headers = new HttpHeaders({
       'Content-Type': 'application/json'
     });
 
-    return this.http.post<ApiResponse<LoginResponseData>>(url, credentials, { headers });
-  }
-
-  guardarToken(token: string): void {
-    localStorage.setItem('token', token); // Guarda el token en el almacenamiento local
-  }
-
-  // Otros métodos de la API como obtener "me", "accounts", etc., con token en el encabezado
-  getMe(token: string): Observable<any> {
-    const headers = new HttpHeaders({
-      'X-Mi-Token': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
-
-    // Asegúrate de incluir un "body", aunque esté vacío
-    const body = {};
-
-    return this.http.post(`${this.baseUrl}${ENV.ME}`, body, { headers }).pipe(
-      catchError((error) => {
-        if (error.status === 0) {
-          console.error('Error de CORS o problema de conexión');
-        } else {
-          console.error('Error al obtener "me":', error);
-        }
-        return of(null); // Regresa null o maneja el error de forma adecuada
+    return this.http.post<ApiResponse<LoginResponseData>>(url, credentials, { headers }).pipe(
+      catchError(error => {
+        throw new TokenError(
+          'Error en las credenciales de acceso',
+          'AUTH_SERVICE_LOGIN_FAILED'
+        );
       })
     );
   }
 
-  isAuthenticated(): Observable<boolean> {
-    const token = localStorage.getItem('token');
+  guardarToken(token: string): void {
+    localStorage.setItem('token', token);
+  }
 
-    if (!token) {
-      console.warn('No hay token');
-      this.clearLocalStorage();
-      return of(false); // No hay token, no autenticado
-    }
-
+  getMe(): Observable<ApiResponse<User>> {
     try {
-      return this.getMe(token).pipe(
-        map((response: any) => {
-          if (response && response.success) {
-            console.log('Usuario autenticado');
-            return true; // Usuario autenticado
-          } else {
-            console.warn('Usuario no autenticado');
-            this.clearLocalStorage();
-            return false; // Usuario no autenticado
+      const headers = this.getAuthHeaders();
+      return this.http.post<ApiResponse<User>>(`${this.baseUrl}${ENV.ME}`, {}, { headers }).pipe(
+        catchError(error => {
+          if (error.status === 0) {
+            throw new TokenError(
+              'Error de conexión con el servidor',
+              'AUTH_SERVICE_CONNECTION_ERROR'
+            );
           }
-        }),
-        catchError((error) => {
-          console.error('Error en el servidor:', error);
-          return of(false); // Devolver false en caso de error
+          throw new TokenError(
+            'Error al obtener información del usuario',
+            'AUTH_SERVICE_ME_FAILED'
+          );
         })
       );
     } catch (error) {
-      console.error('Error al contactar al servidor:', error);
-      this.clearLocalStorage();
-      return of(false); // Devolver false en caso de error
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of({ success: false });
     }
   }
 
-  checkAuthenticationAndRedirect(): void {
-    this.isAuthenticated().subscribe(
-      (isAuthenticated) => {
-        console.log('Verificando autenticación...');
-        if (isAuthenticated) {
-          console.log('Usuario autenticado, redirigiendo a dashboard');
-          this.router.navigate(['/dashboard']);
-        } else {
-          console.warn('Usuario no autenticado, redirigiendo a login');
+  isAuthenticated(): Observable<boolean> {
+    try {
+      // Verificamos primero que exista token
+      this.getToken();
+
+      return this.getMe().pipe(
+        map(response => response.success),
+        catchError(error => {
+          if (error instanceof TokenError) {
+            this.handleTokenError(error);
+          }
+          return of(false);
+        })
+      );
+    } catch (error) {
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of(false);
+    }
+  }
+
+  checkAuthenticationAndRedirect(redirectToLogin: boolean = true): void {
+    this.isAuthenticated().subscribe({
+      next: (isAuthenticated) => {
+        if (!isAuthenticated && redirectToLogin) {
           this.router.navigate(['/login']);
         }
       },
-      (error) => {
-        console.error('Error al verificar la autenticación:', error);
-        this.router.navigate(['/login']); // Redirigir a login en caso de error
+      error: (error) => {
+        console.error('Error al verificar autenticación:', error);
+        if (redirectToLogin) {
+          this.router.navigate(['/login']);
+        }
       }
-    );
+    });
   }
 
   public clearLocalStorage(): void {
@@ -156,45 +184,111 @@ export class AuthService {
     localStorage.removeItem('time');
     localStorage.removeItem('user');
   }
-  public getAccounts(token: string): Observable<ApiResponse<AccountsResponse>> {
-    const headers = new HttpHeaders({
-      'X-Mi-Token': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
 
-    return this.http.get<ApiResponse<AccountsResponse>>(
-      `${this.baseUrl}${ENV.ACCOUNTS}`,
-      { headers }
-    );
+  public getAccounts(): Observable<ApiResponse<AccountsResponse>> {
+    try {
+      const headers = this.getAuthHeaders();
+      return this.http.get<ApiResponse<AccountsResponse>>(
+        `${this.baseUrl}${ENV.ACCOUNTS}`,
+        { headers }
+      ).pipe(
+        catchError(error => {
+          throw new TokenError(
+            'Error al obtener cuentas',
+            'AUTH_SERVICE_GET_ACCOUNTS_FAILED'
+          );
+        })
+      );
+    } catch (error) {
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of({ success: false });
+    }
   }
-  public withdraw(token: string, accountId: number, amount: number): Observable<any> {
-    const headers = new HttpHeaders({
-      'X-Mi-Token': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
 
-    const body = {
-      amount: amount,
-      account_id: accountId
-    };
+  public withdraw(accountId: number, amount: number): Observable<ApiResponse<any>> {
+    try {
+      const headers = this.getAuthHeaders();
+      const body = {
+        amount: amount,
+        account_id: accountId
+      };
 
-    return this.http.post(
-      `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
-      body,
-      { headers }
-    );
+      return this.http.post<ApiResponse<any>>(
+        `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
+        body,
+        { headers }
+      ).pipe(
+        catchError(error => {
+          throw new TokenError(
+            'Error al realizar retiro',
+            'AUTH_SERVICE_WITHDRAW_FAILED'
+          );
+        })
+      );
+    } catch (error) {
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of({ success: false });
+    }
   }
-  public getTransactions(token: string, accountId: number, to: string, from: string): Observable<ApiResponse<TransactionsResponse>> {
-    const headers = new HttpHeaders({
-      'X-Mi-Token': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
 
-    
+  public getTransactions(accountId: number, to: string, from: string): Observable<ApiResponse<TransactionsResponse>> {
+    try {
+      const headers = this.getAuthHeaders();
+      return this.http.get<ApiResponse<TransactionsResponse>>(
+        `${this.baseUrl}${ENV.TRANSACTIONS}?idAccount=${accountId}&to=${to}&from=${from}`,
+        { headers }
+      ).pipe(
+        catchError(error => {
+          throw new TokenError(
+            'Error al obtener transacciones',
+            'AUTH_SERVICE_GET_TRANSACTIONS_FAILED'
+          );
+        })
+      );
+    } catch (error) {
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of({ success: false });
+    }
+  }
 
-    return this.http.get<ApiResponse<TransactionsResponse>>(
-      `${this.baseUrl}${ENV.TRANSACTIONS}?idAccount=${accountId}&to=${to}&from=${from}`,
-      { headers }
-    );
+  public logout(): Observable<ApiResponse<any>> {
+    try {
+      const headers = this.getAuthHeaders();
+      return this.http.post<ApiResponse<any>>(
+        `${this.baseUrl}${ENV.LOGOUT}`,
+        {},
+        { headers }
+      ).pipe(
+        map(response => {
+          this.clearLocalStorage();
+          return response;
+        }),
+        catchError(error => {
+          this.clearLocalStorage();
+          throw new TokenError(
+            'Error al cerrar sesión',
+            'AUTH_SERVICE_LOGOUT_FAILED'
+          );
+        })
+      );
+    } catch (error) {
+      this.clearLocalStorage();
+      if (error instanceof TokenError) {
+        this.handleTokenError(error);
+      }
+      return of({ success: false });
+    }
+  }
+
+  private handleTokenError(error: TokenError): void {
+    console.error(`[${error.code}] ${error.message}`);
+    this.clearLocalStorage();
+    this.router.navigate(['/login']);
   }
 }
