@@ -113,8 +113,8 @@
                                 </div>
 
                                 <div class="mt-4">
-                                    <button class="btn btn-success w-100 py-3" data-bs-toggle="modal"
-                                        data-bs-target="#customAmountModal" [disabled]="!selectedAccount || isLoading">
+                                    <button class="btn btn-success w-100 py-3" (click)="openCustomAmountModal()"
+                                        [disabled]="!selectedAccount || isLoading">
                                         <i class="bi bi-pen me-2"></i>Otro monto
                                     </button>
                                 </div>

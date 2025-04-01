@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService, Transaction, Account as AuthAccount } from '../../services/auth.service';
 import { Router } from '@angular/router';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { CustomAmountModalComponent } from '../../components/custom-amount-modal/custom-amount-modal.component';
 
 interface Account extends AuthAccount {
   created_at: string;
@@ -29,7 +31,8 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private modalService: NgbModal
   ) { }
 
   ngOnInit(): void {
@@ -86,14 +89,14 @@ export class DashboardComponent implements OnInit {
         this.isLoading = false;
         if (err.status === 422 && err.error?.data?.message) {
           this.transactionMessage = err.error.data.message;
-        } 
+        }
         else if (err.error?.message) {
           this.transactionMessage = err.error.message;
         }
         else {
           this.transactionMessage = 'Error al realizar el retiro';
         }
-        
+
         console.error('Error en retiro:', err);
       }
     });
@@ -127,7 +130,7 @@ export class DashboardComponent implements OnInit {
 
     this.isLoading = true;
     const today = this.currentDate.toISOString().split('T')[0];
-    
+
     this.authService.getTransactions(this.selectedAccount.id, today, today).subscribe({
       next: (response) => {
         if (response?.success && response.data) {
@@ -170,5 +173,19 @@ export class DashboardComponent implements OnInit {
 
   clearTransactionMessage(): void {
     this.transactionMessage = null;
+  }
+  openCustomAmountModal(): void {
+    const modalRef = this.modalService.open(CustomAmountModalComponent);
+    modalRef.componentInstance.customAmount = this.customAmount;
+    modalRef.componentInstance.isLoading = this.isLoading;
+    modalRef.componentInstance.selectedAccount = this.selectedAccount;
+
+    modalRef.result.then((result) => {
+      if (result && result.amount) {
+        this.withdraw(result.amount);
+      }
+    }).catch(() => {
+      // Se ejecuta cuando el modal se cierra sin confirmar
+    });
   }
 }
