@@ -75,9 +75,7 @@ export class AuthService {
       `${this.baseUrl}${ENV.LOGIN}`,
       credentials,
       { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
-    ).pipe(
-      catchError(() => { throw new TokenError('Error en credenciales', 'AUTH_SERVICE_LOGIN_FAILED'); })
-    );
+    )
   }
 
   saveToken(token: string): void {

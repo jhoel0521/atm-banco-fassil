@@ -8,16 +8,24 @@
                     <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
                     <input type="text" id="numberCard" class="form-control" placeholder="4796******"
                         [(ngModel)]="cardNumber" name="numberCard" required>
+                        <div *ngIf="!isCardNumberValid() && cardNumber" class="text-danger">
+                            Ingrese un número de tarjeta válido (4-16 dígitos).
+                        </div>
                 </div>
             </div>
             <div class="mb-3">
                 <label for="pin" class="form-label">PIN</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                    <input type="password" id="pin" class="form-control" placeholder="****"
-                        minlength="4" maxlength="4" pattern="\d{4}" title="El PIN debe contener 4 dígitos"
-                        [(ngModel)]="pin" name="pin" required>
+                    <input type="password" id="pin" class="form-control" placeholder="****" minlength="4" maxlength="4"
+                        pattern="\d{4}" title="El PIN debe contener 4 dígitos" [(ngModel)]="pin" name="pin" required>
+                    <div *ngIf="!isPinValid() && pin" class="text-danger">
+                        Ingrese un PIN válido (4 dígitos).
+                    </div>
                 </div>
+            </div>
+            <div *ngIf="this.errorMessage" class="text-danger">
+                {{ this.errorMessage }}
             </div>
             <button class="btn btn-primary w-100">Ingresar</button>
         </form>
