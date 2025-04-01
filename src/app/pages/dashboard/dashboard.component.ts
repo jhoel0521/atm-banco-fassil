@@ -80,6 +80,25 @@ export class DashboardComponent implements OnInit {
     this.loadTransactions();
   }
 
+  // Agrega este método para calcular los billetes
+  private calculateBills(amount: number): number[] {
+    const denominations = [200, 100, 50, 20];
+    const bills = [];
+    let remaining = amount;
+
+    for (const denom of denominations) {
+      const count = Math.floor(remaining / denom);
+      if (count > 0) {
+        for (let i = 0; i < count; i++) {
+          bills.push(denom);
+        }
+        remaining = remaining % denom;
+      }
+    }
+    return bills;
+  }
+
+  // Modifica el método withdraw existente
   withdraw(amount: number) {
     if (!this.selectedAccount) return;
 
@@ -89,15 +108,20 @@ export class DashboardComponent implements OnInit {
     this.isLoading = true;
     this.authService.withdraw(token, this.selectedAccount.id, amount).subscribe({
       next: (response: any) => {
-        this.transactionMessage = 'Retiro exitoso!';
-        this.loadAccounts(); // Actualizar saldos
-        this.isLoading = false;
-        setTimeout(() => this.transactionMessage = null, 3000);
+        // Redirige a la página de animación con los datos
+        this.router.navigate(['/withdrawal-animation'], {
+          queryParams: {
+            amount: amount,
+            account: this.selectedAccount?.id
+          },
+          state: {
+            bills: this.calculateBills(amount),
+            transactionData: response
+          }
+        });
       },
       error: (err) => {
-        this.transactionMessage = 'Error en el retiro: ' + (err.error?.message || 'Error desconocido');
-        this.isLoading = false;
-        setTimeout(() => this.transactionMessage = null, 5000);
+        // Manejo de errores...
       }
     });
   }
