@@ -6,12 +6,9 @@ import { Router } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 
 export class TokenError extends Error {
-  public code: string;
-
-  constructor(message: string, code: string) {
+  constructor(override message: string, public code: string) {
     super(message);
     this.name = 'TokenError';
-    this.code = code;
     Object.setPrototypeOf(this, TokenError.prototype);
   }
 }
@@ -30,20 +27,11 @@ export interface Account {
   officeId: number;
 }
 
-export interface AccountsResponse {
-  accounts: Account[];
-}
-
 export interface User {
   id: number;
   username: string;
   personId: number;
   status: string;
-}
-
-export interface LoginResponseData {
-  token: string;
-  user: User;
 }
 
 export interface Transaction {
@@ -59,14 +47,6 @@ export interface Transaction {
   accountId: number;
 }
 
-export interface TransactionsResponse {
-  message: string;
-  accounts: {
-    id: number;
-    transactions: Transaction[];
-  }[];
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -75,195 +55,118 @@ export class AuthService {
 
   constructor(private http: HttpClient, private router: Router) { }
 
-  // Método para obtener el token con manejo de errores
   getToken(): string {
     const token = localStorage.getItem('token');
     if (!token) {
-      throw new TokenError(
-        'No se encontró token de autenticación. Redirigiendo a login.',
-        'AUTH_SERVICE_NO_TOKEN'
-      );
+      throw new TokenError('No se encontró token de autenticación', 'AUTH_SERVICE_NO_TOKEN');
     }
     return token;
   }
 
-  // Método para establecer headers con token
   private getAuthHeaders(): HttpHeaders {
-    const token = this.getToken();
     return new HttpHeaders({
-      'X-Mi-Token': `Bearer ${token}`,
+      'X-Mi-Token': `Bearer ${this.getToken()}`,
       'Content-Type': 'application/json'
     });
   }
 
-  login(credentials: { cardNumber: string; pin: string }): Observable<ApiResponse<LoginResponseData>> {
-    const url = `${this.baseUrl}${ENV.LOGIN}`;
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json'
-    });
-
-    return this.http.post<ApiResponse<LoginResponseData>>(url, credentials, { headers }).pipe(
-      catchError(error => {
-        throw new TokenError(
-          'Error en las credenciales de acceso',
-          'AUTH_SERVICE_LOGIN_FAILED'
-        );
-      })
+  login(credentials: { cardNumber: string; pin: string }): Observable<ApiResponse<{ token: string; user: User }>> {
+    return this.http.post<ApiResponse<{ token: string; user: User }>>(
+      `${this.baseUrl}${ENV.LOGIN}`,
+      credentials,
+      { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
+    ).pipe(
+      catchError(() => { throw new TokenError('Error en credenciales', 'AUTH_SERVICE_LOGIN_FAILED'); })
     );
   }
 
-  guardarToken(token: string): void {
+  saveToken(token: string): void {
     localStorage.setItem('token', token);
   }
 
   getMe(): Observable<ApiResponse<User>> {
     try {
-      const headers = this.getAuthHeaders();
-      return this.http.post<ApiResponse<User>>(`${this.baseUrl}${ENV.ME}`, {}, { headers }).pipe(
+      return this.http.post<ApiResponse<User>>(
+        `${this.baseUrl}${ENV.ME}`,
+        {},
+        { headers: this.getAuthHeaders() }
+      ).pipe(
         catchError(error => {
-          if (error.status === 0) {
-            throw new TokenError(
-              'Error de conexión con el servidor',
-              'AUTH_SERVICE_CONNECTION_ERROR'
-            );
-          }
-          throw new TokenError(
-            'Error al obtener información del usuario',
-            'AUTH_SERVICE_ME_FAILED'
-          );
+          const code = error.status === 0 ? 'AUTH_SERVICE_CONNECTION_ERROR' : 'AUTH_SERVICE_ME_FAILED';
+          throw new TokenError('Error al obtener usuario', code);
         })
       );
     } catch (error) {
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of({ success: false });
     }
   }
 
   isAuthenticated(): Observable<boolean> {
     try {
-      // Verificamos primero que exista token
       this.getToken();
-
       return this.getMe().pipe(
         map(response => response.success),
         catchError(error => {
-          if (error instanceof TokenError) {
-            this.handleTokenError(error);
-          }
+          this.handleError(error);
           return of(false);
         })
       );
     } catch (error) {
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of(false);
     }
   }
 
-  checkAuthenticationAndRedirect(redirectToLogin: boolean = true): void {
-    this.isAuthenticated().subscribe({
-      next: (isAuthenticated) => {
-        if (!isAuthenticated && redirectToLogin) {
-          this.router.navigate(['/login']);
-        }
-      },
-      error: (error) => {
-        console.error('Error al verificar autenticación:', error);
-        if (redirectToLogin) {
-          this.router.navigate(['/login']);
-        }
-      }
-    });
-  }
-
-  public clearLocalStorage(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('time');
-    localStorage.removeItem('user');
-  }
-
-  public getAccounts(): Observable<ApiResponse<AccountsResponse>> {
+  getAccounts(): Observable<ApiResponse<{ accounts: Account[] }>> {
     try {
-      const headers = this.getAuthHeaders();
-      return this.http.get<ApiResponse<AccountsResponse>>(
+      return this.http.get<ApiResponse<{ accounts: Account[] }>>(
         `${this.baseUrl}${ENV.ACCOUNTS}`,
-        { headers }
+        { headers: this.getAuthHeaders() }
       ).pipe(
-        catchError(error => {
-          throw new TokenError(
-            'Error al obtener cuentas',
-            'AUTH_SERVICE_GET_ACCOUNTS_FAILED'
-          );
-        })
+        catchError(() => { throw new TokenError('Error al obtener cuentas', 'AUTH_SERVICE_GET_ACCOUNTS_FAILED'); })
       );
     } catch (error) {
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of({ success: false });
     }
   }
 
-  public withdraw(accountId: number, amount: number): Observable<ApiResponse<any>> {
+  withdraw(accountId: number, amount: number): Observable<ApiResponse<any>> {
     try {
-      const headers = this.getAuthHeaders();
-      const body = {
-        amount: amount,
-        account_id: accountId
-      };
-
       return this.http.post<ApiResponse<any>>(
         `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
-        body,
-        { headers }
+        { amount, account_id: accountId },
+        { headers: this.getAuthHeaders() }
       ).pipe(
-        catchError(error => {
-          throw new TokenError(
-            'Error al realizar retiro',
-            'AUTH_SERVICE_WITHDRAW_FAILED'
-          );
-        })
+        catchError(() => { throw new TokenError('Error al retirar', 'AUTH_SERVICE_WITHDRAW_FAILED'); })
       );
     } catch (error) {
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of({ success: false });
     }
   }
 
-  public getTransactions(accountId: number, to: string, from: string): Observable<ApiResponse<TransactionsResponse>> {
+  getTransactions(accountId: number, to: string, from: string): Observable<ApiResponse<{ accounts: { id: number; transactions: Transaction[] }[] }>> {
     try {
-      const headers = this.getAuthHeaders();
-      return this.http.get<ApiResponse<TransactionsResponse>>(
+      return this.http.get<ApiResponse<{ accounts: { id: number; transactions: Transaction[] }[] }>>(
         `${this.baseUrl}${ENV.TRANSACTIONS}?idAccount=${accountId}&to=${to}&from=${from}`,
-        { headers }
+        { headers: this.getAuthHeaders() }
       ).pipe(
-        catchError(error => {
-          throw new TokenError(
-            'Error al obtener transacciones',
-            'AUTH_SERVICE_GET_TRANSACTIONS_FAILED'
-          );
-        })
+        catchError(() => { throw new TokenError('Error al obtener transacciones', 'AUTH_SERVICE_GET_TRANSACTIONS_FAILED'); })
       );
     } catch (error) {
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of({ success: false });
     }
   }
 
-  public logout(): Observable<ApiResponse<any>> {
+  logout(): Observable<ApiResponse<any>> {
     try {
-      const headers = this.getAuthHeaders();
       return this.http.post<ApiResponse<any>>(
         `${this.baseUrl}${ENV.LOGOUT}`,
         {},
-        { headers }
+        { headers: this.getAuthHeaders() }
       ).pipe(
         map(response => {
           this.clearLocalStorage();
@@ -271,24 +174,27 @@ export class AuthService {
         }),
         catchError(error => {
           this.clearLocalStorage();
-          throw new TokenError(
-            'Error al cerrar sesión',
-            'AUTH_SERVICE_LOGOUT_FAILED'
-          );
+          throw new TokenError('Error al cerrar sesión', 'AUTH_SERVICE_LOGOUT_FAILED');
         })
       );
     } catch (error) {
       this.clearLocalStorage();
-      if (error instanceof TokenError) {
-        this.handleTokenError(error);
-      }
+      this.handleError(error);
       return of({ success: false });
     }
   }
 
-  private handleTokenError(error: TokenError): void {
-    console.error(`[${error.code}] ${error.message}`);
-    this.clearLocalStorage();
-    this.router.navigate(['/login']);
+  clearLocalStorage(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('time');
+    localStorage.removeItem('user');
+  }
+
+  private handleError(error: unknown): void {
+    if (error instanceof TokenError) {
+      console.error(`[${error.code}] ${error.message}`);
+      this.clearLocalStorage();
+      this.router.navigate(['/login']);
+    }
   }
 }

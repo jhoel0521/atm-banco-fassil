@@ -1,16 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService, Transaction } from '../../services/auth.service';
+import { AuthService, Transaction, Account as AuthAccount } from '../../services/auth.service';
 import { Router } from '@angular/router';
 
-interface Account {
-  id: number;
-  currentBalance: string;
-  type: string;
-  status: string;
-  personId: number;
-  officeId: number;
+interface Account extends AuthAccount {
   created_at: string;
   updated_at: string;
 }
@@ -26,36 +20,34 @@ export class DashboardComponent implements OnInit {
   user: any;
   accounts: Account[] = [];
   selectedAccount: Account | null = null;
+  transactions: Transaction[] = [];
   currentDate = new Date();
   quickAmounts = [100, 200, 500, 1000];
-  customAmount: number = 0;
+  customAmount = 0;
+  isLoading = false;
   transactionMessage: string | null = null;
-  isLoading: boolean = false;
-  transactions: Transaction[] = [];
+
   constructor(
-    public authService: AuthService,
+    private authService: AuthService,
     private router: Router
   ) { }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.loadUserData();
     this.loadAccounts();
-
   }
 
-  private loadUserData() {
+  private loadUserData(): void {
     const userData = localStorage.getItem('user');
-    if (userData) {
-      this.user = JSON.parse(userData);
-    }
+    this.user = userData ? JSON.parse(userData) : null;
   }
 
-  private loadAccounts() {
+  private loadAccounts(): void {
     this.isLoading = true;
     this.authService.getAccounts().subscribe({
-      next: (response: any) => {
-        if (response?.success) {
-          this.accounts = response.data.accounts;
+      next: (response) => {
+        if (response?.success && response.data) {
+          this.accounts = response.data.accounts as Account[];
           if (this.accounts.length > 0) {
             this.selectedAccount = this.accounts[0];
             this.loadTransactions();
@@ -63,47 +55,22 @@ export class DashboardComponent implements OnInit {
         }
         this.isLoading = false;
       },
-      error: (err) => {
-        console.error('Error loading accounts:', err);
-        this.isLoading = false;
-      }
+      error: () => this.isLoading = false
     });
   }
-  public getTransactions() {
 
-  }
-  selectAccount(account: Account) {
+  selectAccount(account: Account): void {
     this.selectedAccount = account;
     this.loadTransactions();
   }
 
-  // Agrega este método para calcular los billetes
-  private calculateBills(amount: number): number[] {
-    const denominations = [200, 100, 50, 20, 10];
-    const bills = [];
-    let remaining = amount;
-
-    for (const denom of denominations) {
-      const count = Math.floor(remaining / denom);
-      if (count > 0) {
-        for (let i = 0; i < count; i++) {
-          bills.push(denom);
-        }
-        remaining = remaining % denom;
-      }
-    }
-    return bills;
-  }
-
-  // Modifica el método withdraw existente
-  withdraw(amount: number) {
+  withdraw(amount: number): void {
     if (!this.selectedAccount) return;
-
 
     this.isLoading = true;
     this.authService.withdraw(this.selectedAccount.id, amount).subscribe({
-      next: (response: any) => {
-        // Redirige a la página de animación con los datos
+      next: (response) => {
+        this.transactionMessage = 'Retiro realizado con éxito';
         this.router.navigate(['/withdrawal-animation'], {
           queryParams: {
             amount: amount,
@@ -116,78 +83,83 @@ export class DashboardComponent implements OnInit {
         });
       },
       error: (err) => {
-        // Manejo de errores...
+        console.error(err); 
+        this.transactionMessage = 'Error al realizar el retiro';
+        this.isLoading = false;
       }
     });
   }
 
-  withdrawCustom() {
+  withdrawCustom(): void {
     if (this.customAmount > 0 && this.selectedAccount) {
       this.withdraw(this.customAmount);
       this.customAmount = 0;
     }
   }
 
-  formatBalance(balance: string): number {
-    return parseFloat(balance);
-  }
+  private calculateBills(amount: number): number[] {
+    const denominations = [200, 100, 50, 20, 10];
+    const bills: number[] = [];
+    let remaining = amount;
 
-  getFormat(cuenta: Account): string {
-    const formattedId = cuenta.id.toString().padStart(8, '0');
-    return (cuenta.type === 'CA' ? 'Cuenta Ahorros' : 'Cuenta Corriente') + ` #${cuenta.type}-${formattedId}`
-  }
-
-  logout() {
-    this.authService.logout().subscribe({
-      next: (response) => {
-        console.log('Logout exitoso', response);
-        this.router.navigate(['/login']);
-      },
-      error: (error) => {
-        console.error('Error en logout:', error);
-        this.router.navigate(['/login']);
-      },
-      complete: () => {
-        console.log('Logout completado');
+    denominations.forEach(denom => {
+      const count = Math.floor(remaining / denom);
+      if (count > 0) {
+        bills.push(...Array(count).fill(denom));
+        remaining %= denom;
       }
     });
+
+    return bills;
   }
-  loadTransactions() {
+
+  loadTransactions(): void {
     if (!this.selectedAccount) return;
 
-
-    const today = new Date();
-    // yyyy-mm-dd
-    const now = today.toISOString().split('T')[0];
-    console.log('Fecha actual:', now);
     this.isLoading = true;
-    this.authService.getTransactions(
-      this.selectedAccount.id,
-      now,
-      now,
-    ).subscribe({
-      next: (response: any) => {
-        if (response?.success) {
-          const accountData = response.data.accounts.find((acc: any) => acc.id === this.selectedAccount?.id);
+    const today = this.currentDate.toISOString().split('T')[0];
+    
+    this.authService.getTransactions(this.selectedAccount.id, today, today).subscribe({
+      next: (response) => {
+        if (response?.success && response.data) {
+          const accountData = response.data.accounts.find(acc => acc.id === this.selectedAccount?.id);
           this.transactions = accountData?.transactions || [];
-          console.log('Transactions:', this.transactions);
         }
         this.isLoading = false;
       },
-      error: (err) => {
-        console.error('Error loading transactions:', err);
+      error: () => {
         this.transactions = [];
         this.isLoading = false;
       }
     });
   }
 
+  logout(): void {
+    this.authService.logout().subscribe({
+      next: () => this.router.navigate(['/login']),
+      error: () => this.router.navigate(['/login'])
+    });
+  }
+
+  formatBalance(balance: string): number {
+    return parseFloat(balance);
+  }
+
+  getFormat(account: Account): string {
+    const formattedId = account.id.toString().padStart(8, '0');
+    return `${account.type === 'CA' ? 'Cuenta Ahorros' : 'Cuenta Corriente'} #${account.type}-${formattedId}`;
+  }
+
   formatTransactionType(type: string): string {
-    switch (type) {
-      case 'W': return 'Retiro';
-      case 'D': return 'Depósito';
-      case 'T': return 'Transferencia';
-      default: return type;
-    }
+    const types: Record<string, string> = {
+      'W': 'Retiro',
+      'D': 'Depósito',
+      'T': 'Transferencia'
+    };
+    return types[type] || type;
+  }
+
+  clearTransactionMessage(): void {
+    this.transactionMessage = null;
   }
 }
