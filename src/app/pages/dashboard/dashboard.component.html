@@ -147,30 +147,3 @@
         </div>
     </div>
 </div>
-
-<!-- Modal para monto personalizado -->
-<div class="modal fade" id="customAmountModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Retiro Personalizado</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Monto a retirar</label>
-                    <input type="number" class="form-control form-control-lg" [(ngModel)]="customAmount"
-                        placeholder="Ingrese el monto" min="1" [disabled]="isLoading">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                    [disabled]="isLoading">Cancelar</button>
-                <button type="button" class="btn btn-success" (click)="withdrawCustom()" data-bs-dismiss="modal"
-                    [disabled]="!customAmount || isLoading">
-                    Retirar
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
