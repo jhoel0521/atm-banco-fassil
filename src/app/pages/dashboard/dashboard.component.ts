@@ -83,9 +83,20 @@ export class DashboardComponent implements OnInit {
         });
       },
       error: (err) => {
-        console.error(err); 
-        this.transactionMessage = 'Error al realizar el retiro';
         this.isLoading = false;
+        // Manejo específico para error 422 con mensaje del servidor
+        if (err.status === 422 && err.error?.data?.message) {
+          this.transactionMessage = err.error.data.message;
+        } 
+        // Manejo de otros tipos de errores
+        else if (err.error?.message) {
+          this.transactionMessage = err.error.message;
+        }
+        else {
+          this.transactionMessage = 'Error al realizar el retiro';
+        }
+        
+        console.error('Error en retiro:', err);
       }
     });
   }

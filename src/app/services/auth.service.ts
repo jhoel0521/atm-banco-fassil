@@ -133,18 +133,11 @@ export class AuthService {
   }
 
   withdraw(accountId: number, amount: number): Observable<ApiResponse<any>> {
-    try {
-      return this.http.post<ApiResponse<any>>(
-        `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
-        { amount, account_id: accountId },
-        { headers: this.getAuthHeaders() }
-      ).pipe(
-        catchError(() => { throw new TokenError('Error al retirar', 'AUTH_SERVICE_WITHDRAW_FAILED'); })
-      );
-    } catch (error) {
-      this.handleError(error);
-      return of({ success: false });
-    }
+    return this.http.post<ApiResponse<any>>(
+      `${this.baseUrl}${ENV.ACCOUNT_WITHDRAW}`,
+      { amount, account_id: accountId },
+      { headers: this.getAuthHeaders() }
+    )
   }
 
   getTransactions(accountId: number, to: string, from: string): Observable<ApiResponse<{ accounts: { id: number; transactions: Transaction[] }[] }>> {
